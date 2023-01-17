@@ -1,4 +1,5 @@
 import re
+import time
 from datetime import datetime
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -6,32 +7,30 @@ import requests
 # Enables easier troubleshooting
 pd.options.display.max_colwidth = 100
 # Format is 'YYYY-MM-DD' 'YYYY-MM-DD' 'task you want'
-START_DATE =
-END_DATE =
-TASK =
+START_DATE = '2021-12-01'
+END_DATE = '2022-06-01'
+TASK = 'PRAYER'
 # Converts date string to proper datetime format
 START_DATE = datetime.strptime(START_DATE, "%Y-%m-%d").date()
 END_DATE = datetime.strptime(END_DATE, "%Y-%m-%d").date()
 day = START_DATE.strftime('%d')
 month = START_DATE.strftime('%m')
 year = START_DATE.strftime('%Y')
-URL_TEMPLATE = 'https://www.congress.gov/congressional-record/{}/{}/{}/'\
-                'senate-section'
+URL_TEMPLATE = 'https://www.congress.gov/congressional-record/{}/{}/{}/senate-section'
 # Connects years to session for url creation
 session_dict = {'congress':
-                [104, 104, 105, 105, 106, 106, 107, 107, 108, 108, 109, 109,
-                 110, 110, 111, 111, 112, 112, 113, 113, 114, 114, 115, 115,
-                 116, 116, 117, 117, 118, 118],
+                # This is required to build URLs as years are converted to the index below
+                [104, 104, 105, 105, 106, 106, 107, 107, 108, 108, 109, 109, 110, 110, 111, 111, 112, 112, 113, 113,
+                 114, 114, 115, 115, 116, 116, 117, 117, 118, 118],
                 'year':
-                ['1995', '1996', '1997', '1998', '1999', '2000', '2001',
-                 '2002', '2003', '2004', '2005', '2006', '2007', '2008',
-                 '2009', '2010', '2011', '2012', '2013', '2014', '2015',
-                 '2016', '2017', '2018', '2019', '2020', '2021', '2022',
-                 '2023', '2024']}
-# builds URL and returns parsed HTML data. Adds columns for date, section, page
+                ['1995', '1996', '1997', '1998', '1999', '2000', '2001', '2002', '2003', '2004', '2005', '2006',
+                 '2007', '2008', '2009', '2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017', '2018', '2019',
+                 '2020', '2021', '2022', '2023', '2024']}
+# Builds URL and returns parsed HTML data. Adds columns for date, section, page
 URL = URL_TEMPLATE.format(year, month, day)
 html_doc = requests.get(URL).text
 soup = BeautifulSoup(html_doc, 'html.parser')
+print(soup)
 table = soup.find_all(class_='item_table')
 df = pd.read_html(str(table), na_values=['---'], header=0)[0]
 df.drop(df.shape[0] - 1, inplace=True)
@@ -61,22 +60,20 @@ else:
     df.drop(columns=['record_dirty'], inplace=True)
     df.drop(columns=['record_dirty1'], inplace=True)
 # Creates URL specific to the task input
-line = df[df['task'].str.contains(TASK, case=False)]
 session_df = pd.DataFrame(data=session_dict)
 session_df.set_index('year', inplace=True)
 session_df = session_df.loc[year]
 SESS = session_df[0]
 SESS = str(SESS)
 line = df[df['task'].str.contains(TASK, case=False)]
+url_date = (year + '-' + month + '-' + day), (year + '/' + month + '/' + day)
+# Simplifies url builds
+url_core = 'https://www.congress.gov/'
 if left_limit < START_DATE < right_limit:
-    url2 = 'https://www.congress.gov/crec/' + year + '/' + month + '/' + day + \
-    '/modified/CREC-' + year + '-' + month + '-' + day + '-pt1-Pg' + \
-    line['page'] + '-' + line['item']+'.htm'
+    url2 = url_core + 'crec/' + url_date[1] + '/modified/CREC-' + url_date[2] + '-pt1-Pg' + line['page'] + '-' + line['item']+'.htm'
 else:
-    url2 = 'https://www.congress.gov/' + SESS + '/crec/' + year + '/' + month \
-    + '/' + day + '/modified/CREC-' + year + '-' + month + '-' + day + \
-    '-pt1-Pg' + line['page'] + '-' + line['item'] + '.htm'
-#Prepares url for use in request/bs scraping
+    url2 = url_core + SESS + '/crec/' + url_date[1] + '/modified/CREC-' + url_date[2] + '-pt1-Pg' + line['page'] + '-' + line['item'] + '.htm'
+# Prepares url for use in request/bs scraping
 URL2_STR = str(url2)
 URL2_STR = URL2_STR[1:-14]
 URL2_STR = URL2_STR.strip()
